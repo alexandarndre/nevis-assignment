@@ -1,0 +1,64 @@
+name: nevis-search
+
+x-app: &app
+  build: .
+  image: nevis-search:latest
+  environment:
+    DATABASE_URL: postgresql+psycopg://nevis:nevis@db:5432/nevis
+    REDIS_URL: redis://redis:6379/0
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    SUMMARY_MODEL: ${SUMMARY_MODEL:-claude-haiku-5-5}
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.1-pg17
+    environment:
+      POSTGRES_USER: nevis
+      POSTGRES_PASSWORD: nevis
+      POSTGRES_DB: nevis
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nevis -d nevis"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthcheck')"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 15s
+
+volumes:
+  pgdata:

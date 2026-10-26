@@ -1,0 +1,973 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Nevis Search API",
+        "description": "\nSearch API for advisors across clients and their documents.\n\n* **Clients** are matched on name, email and description, typo tolerant.\n* **Documents** are matched on keywords, domain synonyms and meaning.\n* **Summaries** come from Claude when an API key is configured, extractive otherwise.\n\nBusiness endpoints are versioned under `/api/v1`. A breaking change ships as `/api/v2` next to v1;\nadditive changes (new fields, endpoints or optional parameters) stay in v1. `/healthcheck` and the\ndocumentation are unversioned.\n",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/v1/clients": {
+            "post": {
+                "tags": [
+                    "clients"
+                ],
+                "summary": "Create a client",
+                "operationId": "create_client",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClientIn"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientOut"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Email already registered",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clients/{id}": {
+            "get": {
+                "tags": [
+                    "clients"
+                ],
+                "summary": "Get a client",
+                "operationId": "get_client",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientOut"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown client",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clients/{id}/documents": {
+            "post": {
+                "tags": [
+                    "documents"
+                ],
+                "summary": "Upload a document for a client",
+                "description": "Stores the document, splits it into passages and indexes them for keyword and semantic search.",
+                "operationId": "create_document",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentIn"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DocumentOut"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown client",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "documents"
+                ],
+                "summary": "List a client's documents",
+                "operationId": "list_documents",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DocumentOut"
+                                    },
+                                    "title": "Response List Documents"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown client",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/documents/{id}": {
+            "get": {
+                "tags": [
+                    "documents"
+                ],
+                "summary": "Get a document",
+                "operationId": "get_document",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DocumentOut"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown document",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/documents/{id}/summary": {
+            "get": {
+                "tags": [
+                    "documents"
+                ],
+                "summary": "Summarize a document",
+                "description": "Summarizes with Claude when `ANTHROPIC_API_KEY` is configured, otherwise picks the sentences closest to the document's embedding centroid. Results are cached in Redis by content hash.",
+                "operationId": "get_document_summary",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DocumentSummary"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown document",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "LLM provider failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/search": {
+            "get": {
+                "tags": [
+                    "search"
+                ],
+                "summary": "Search clients and documents",
+                "description": "Hybrid search. Clients match on name and email (trigram, typo tolerant) and on description (full text). Documents match on keywords (full text), on domain synonyms (e.g. *address proof* also finds *utility bill*) and semantically (vector similarity over passages). The rankings are merged with Reciprocal Rank Fusion.",
+                "operationId": "search",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "description": "Free-text query matched against clients and documents.",
+                            "examples": [
+                                "NevisWealth",
+                                "address proof",
+                                "selling the company"
+                            ],
+                            "title": "Q"
+                        },
+                        "description": "Free-text query matched against clients and documents."
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/HitType"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Restrict results to one kind of hit.",
+                            "title": "Type"
+                        },
+                        "description": "Restrict results to one kind of hit."
+                    },
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Restrict results to one client and their documents.",
+                            "title": "Client Id"
+                        },
+                        "description": "Restrict results to one client and their documents."
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 50,
+                            "minimum": 1,
+                            "description": "Maximum number of hits returned.",
+                            "default": 10,
+                            "title": "Limit"
+                        },
+                        "description": "Maximum number of hits returned."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Hits ordered by score, highest first. Empty when nothing matches.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/ClientHit"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/DocumentHit"
+                                            }
+                                        ],
+                                        "discriminator": {
+                                            "propertyName": "type",
+                                            "mapping": {
+                                                "client": "#/components/schemas/ClientHit",
+                                                "document": "#/components/schemas/DocumentHit"
+                                            }
+                                        }
+                                    },
+                                    "title": "Response Search"
+                                },
+                                "example": [
+                                    {
+                                        "score": 0.016393,
+                                        "matched_by": [
+                                            "synonym"
+                                        ],
+                                        "type": "document",
+                                        "snippet": "British <mark>Gas</mark> <mark>electricity</mark> and <mark>gas</mark> <mark>statement</mark> for",
+                                        "document": {
+                                            "id": "42f59747-94a8-4841-b796-a13d54e26a2b",
+                                            "created_at": "2026-10-25T15:19:50Z",
+                                            "title": "Utility bill - British Gas, March 2024",
+                                            "content": "British Gas electricity and gas statement for the billing period 1 to 31 March 2024. ...",
+                                            "client_id": "86e608d1-b0ae-43c6-b497-a438a6403cff"
+                                        }
+                                    },
+                                    {
+                                        "score": 0.016129,
+                                        "matched_by": [
+                                            "email"
+                                        ],
+                                        "type": "client",
+                                        "client": {
+                                            "id": "86e608d1-b0ae-43c6-b497-a438a6403cff",
+                                            "created_at": "2026-10-25T15:19:50Z",
+                                            "first_name": "John",
+                                            "last_name": "Doe",
+                                            "email": "john.doe@neviswealth.com",
+                                            "description": "Founder of a fintech start-up. Prefers growth portfolios with an ESG tilt.",
+                                            "social_links": [
+                                                "https://www.linkedin.com/in/johndoe"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "headers": {
+                            "X-Cache": {
+                                "description": "`HIT` when the response was served from Redis, `MISS` when it was computed.",
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "HIT",
+                                        "MISS"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/healthcheck": {
+            "get": {
+                "tags": [
+                    "health"
+                ],
+                "summary": "Readiness of the database and the cache",
+                "operationId": "healthcheck",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthOut"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "A dependency is unreachable",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorOut"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ClientHit": {
+                "properties": {
+                    "score": {
+                        "type": "number",
+                        "title": "Score",
+                        "description": "Reciprocal Rank Fusion score across all retrievers; higher is better."
+                    },
+                    "matched_by": {
+                        "items": {
+                            "$ref": "#/components/schemas/MatchSource"
+                        },
+                        "type": "array",
+                        "title": "Matched By",
+                        "description": "Retrievers that matched this hit."
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "client",
+                        "title": "Type",
+                        "default": "client"
+                    },
+                    "client": {
+                        "$ref": "#/components/schemas/ClientOut"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "score",
+                    "matched_by",
+                    "client"
+                ],
+                "title": "ClientHit"
+            },
+            "ClientIn": {
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "title": "First Name"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "title": "Last Name"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "title": "Email"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 5000
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "social_links": {
+                        "items": {
+                            "type": "string",
+                            "maxLength": 2083,
+                            "minLength": 1,
+                            "format": "uri"
+                        },
+                        "type": "array",
+                        "maxItems": 20,
+                        "title": "Social Links"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "first_name",
+                    "last_name",
+                    "email"
+                ],
+                "title": "ClientIn",
+                "examples": [
+                    {
+                        "description": "Founder of a fintech start-up, focused on long-term growth.",
+                        "email": "john.doe@neviswealth.com",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "social_links": [
+                            "https://www.linkedin.com/in/johndoe"
+                        ]
+                    }
+                ]
+            },
+            "ClientOut": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "title": "First Name"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "title": "Last Name"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "title": "Email"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 5000
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "social_links": {
+                        "items": {
+                            "type": "string",
+                            "maxLength": 2083,
+                            "minLength": 1,
+                            "format": "uri"
+                        },
+                        "type": "array",
+                        "maxItems": 20,
+                        "title": "Social Links"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "created_at",
+                    "first_name",
+                    "last_name",
+                    "email"
+                ],
+                "title": "ClientOut"
+            },
+            "DocumentHit": {
+                "properties": {
+                    "score": {
+                        "type": "number",
+                        "title": "Score",
+                        "description": "Reciprocal Rank Fusion score across all retrievers; higher is better."
+                    },
+                    "matched_by": {
+                        "items": {
+                            "$ref": "#/components/schemas/MatchSource"
+                        },
+                        "type": "array",
+                        "title": "Matched By",
+                        "description": "Retrievers that matched this hit."
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "document",
+                        "title": "Type",
+                        "default": "document"
+                    },
+                    "snippet": {
+                        "type": "string",
+                        "title": "Snippet",
+                        "description": "HTML-escaped best-matching passage; matched keywords are wrapped in <mark> tags."
+                    },
+                    "document": {
+                        "$ref": "#/components/schemas/DocumentOut"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "score",
+                    "matched_by",
+                    "snippet",
+                    "document"
+                ],
+                "title": "DocumentHit"
+            },
+            "DocumentIn": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "minLength": 1,
+                        "title": "Title"
+                    },
+                    "content": {
+                        "type": "string",
+                        "maxLength": 200000,
+                        "minLength": 1,
+                        "title": "Content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "title",
+                    "content"
+                ],
+                "title": "DocumentIn",
+                "examples": [
+                    {
+                        "content": "British Gas electricity statement for 12 Baker Street, London. Amount due 84.20 GBP.",
+                        "title": "Utility bill - March 2024"
+                    }
+                ]
+            },
+            "DocumentOut": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "minLength": 1,
+                        "title": "Title"
+                    },
+                    "content": {
+                        "type": "string",
+                        "maxLength": 200000,
+                        "minLength": 1,
+                        "title": "Content"
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Client Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "created_at",
+                    "title",
+                    "content",
+                    "client_id"
+                ],
+                "title": "DocumentOut"
+            },
+            "DocumentSummary": {
+                "properties": {
+                    "summary": {
+                        "type": "string",
+                        "title": "Summary"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/SummaryMethod"
+                    },
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "LLM used, or the embedding model behind the extractive summary."
+                    },
+                    "document_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Document Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "summary",
+                    "method",
+                    "model",
+                    "document_id"
+                ],
+                "title": "DocumentSummary"
+            },
+            "ErrorOut": {
+                "properties": {
+                    "detail": {
+                        "type": "string",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "detail"
+                ],
+                "title": "ErrorOut"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "HealthOut": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "const": "ok",
+                        "title": "Status"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "status"
+                ],
+                "title": "HealthOut"
+            },
+            "HitType": {
+                "type": "string",
+                "enum": [
+                    "client",
+                    "document"
+                ],
+                "title": "HitType"
+            },
+            "MatchSource": {
+                "type": "string",
+                "enum": [
+                    "name",
+                    "email",
+                    "description",
+                    "keyword",
+                    "synonym",
+                    "semantic"
+                ],
+                "title": "MatchSource"
+            },
+            "SummaryMethod": {
+                "type": "string",
+                "enum": [
+                    "llm",
+                    "extractive"
+                ],
+                "title": "SummaryMethod"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "clients",
+            "description": "Advisor clients. Emails are unique regardless of case."
+        },
+        {
+            "name": "documents",
+            "description": "Client documents. Uploads are split into passages and indexed for keyword and semantic search."
+        },
+        {
+            "name": "search",
+            "description": "One query across clients and their documents."
+        },
+        {
+            "name": "health",
+            "description": "Readiness of the service's dependencies; 503 names the first failing one."
+        }
+    ]
+}
