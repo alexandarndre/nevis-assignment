@@ -3,7 +3,7 @@ from functools import reduce
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Float, Integer, Text, func, literal, select
+from sqlalchemy import Float, Integer, Text, and_, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import ARRAY, distinct_on
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql.elements import ColumnElement
@@ -87,12 +87,19 @@ async def synonym_query(conn: AsyncConnection, q: str, groups: tuple[SynonymGrou
         .table_valued("group_id", "term")
         .render_derived()
     )
+    query = func.plainto_tsquery(TS_CONFIG, q)
+    term = func.plainto_tsquery(TS_CONFIG, synonyms.c.term)
     triggered = set(
         (
             await conn.execute(
                 select(synonyms.c.group_id)
                 .distinct()
-                .where(func.to_tsvector(TS_CONFIG, q).bool_op("@@")(func.plainto_tsquery(TS_CONFIG, synonyms.c.term)))
+                .where(
+                    or_(
+                        func.to_tsvector(TS_CONFIG, q).bool_op("@@")(term),
+                        and_(func.numnode(query) > 0, term.bool_op("@>")(query)),
+                    )
+                )
             )
         ).scalars()
     )

@@ -41,7 +41,7 @@ The brief's own example, "address proof" should find "utility bill", is domain k
 
 So equivalences like this live in a curated synonym file, the same mechanism as Elasticsearch synonym graphs.
 
-* **Triggering:** a query triggers a group when it contains every stemmed word of one of the group's terms (`to_tsvector(q) @@ plainto_tsquery(term)`). So "proof of addresses" and "address proof" both trigger the proof-of-address group.
+* **Triggering:** a group fires in two cases. Either the query contains every stemmed word of one of the group's terms (`to_tsvector(q) @@ plainto_tsquery(term)`), so "address proof" and "proof of addresses" fire proof of address. Or every word of the query appears in one of the group's terms (`plainto_tsquery(term) @> plainto_tsquery(q)`), so a single word like "address", "utility" or "proof" fires every group it belongs to. A query made only of stopwords fires nothing.
 * **Expansion:** the triggered group's terms are OR-ed into an extra full-text query.
 * **The file:** plain text, one comma-separated group per line, validated at startup.
 * **Guard:** a test fails if any multi-word term collapses to a single word after Postgres stopword removal. For example "last will" would become just "last".

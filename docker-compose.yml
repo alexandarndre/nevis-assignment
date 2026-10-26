@@ -60,5 +60,12 @@ services:
       retries: 24
       start_period: 15s
 
+  seed:
+    <<: *app
+    command: ["seed", "--base-url", "http://api:8000/api/v1"]
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:

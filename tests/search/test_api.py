@@ -93,6 +93,23 @@ def test_no_multi_word_synonym_collapses_to_one_word(db: Engine) -> None:
     assert collapsed == []
 
 
+@pytest.mark.parametrize(
+    ("q", "expected"),
+    [
+        ("address", {"Utility bill - British Gas, March 2024", "Tenancy agreement"}),
+        ("proof", {"Utility bill - British Gas, March 2024", "Passport copy", "Payslip May 2024"}),
+    ],
+)
+def test_a_word_from_a_synonym_term_expands_its_group(
+    api: TestClient, seeded: Seeded, q: str, expected: set[str]
+) -> None:
+    assert expected <= set(document_titles(search(api, q, type="document")))
+
+
+def test_stopword_only_query_expands_nothing(api: TestClient, seeded: Seeded) -> None:
+    assert search(api, "the of and") == []
+
+
 def test_unrelated_query_returns_nothing(api: TestClient, seeded: Seeded) -> None:
     assert search(api, "chocolate cake recipe") == []
 

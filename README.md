@@ -12,8 +12,7 @@ Stack: Python 3.13, FastAPI, PostgreSQL 17 with `pgvector` and `pg_trgm`, Redis,
 Requirements: Docker with Compose v2.
 
 ```bash
-docker compose up --build -d                              # db, redis, migrations, api on :8000
-docker compose exec api seed                              # 6 demo clients, 13 documents
+docker compose up --build -d                              # db, redis, migrations, api on :8000, then demo data
 curl -s 'localhost:8000/api/v1/search?q=address%20proof' | jq
 ```
 
@@ -27,7 +26,7 @@ LLM summaries are optional. Without a key, summaries are extractive and everythi
 ANTHROPIC_API_KEY=sk-ant-... docker compose up -d
 ```
 
-Stop and wipe data with `docker compose down -v`.
+The one-shot `seed` service loads 6 demo clients and 13 documents once the API is healthy (about 20 seconds after `up`). It is idempotent: clients that already exist are skipped, so restarts never duplicate data. `docker compose down -v` wipes the database, and the next `up` seeds it again.
 
 ## Local development
 
